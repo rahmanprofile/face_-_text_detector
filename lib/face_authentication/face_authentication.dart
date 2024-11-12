@@ -1,13 +1,12 @@
-import 'dart:io';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
+import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'package:google_mlkit_commons/google_mlkit_commons.dart'; // Import the necessary package
-import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
+
 
 class FaceAuthentication extends StatefulWidget {
-  const FaceAuthentication({Key? key}) : super(key: key);
+  const FaceAuthentication({super.key});
 
   @override
   State<FaceAuthentication> createState() => _FaceAuthenticationState();
@@ -21,26 +20,15 @@ class _FaceAuthenticationState extends State<FaceAuthentication> {
   @override
   void initState() {
     super.initState();
-
-    // Initialize the face detector with options for landmark and classification
-    final options = FaceDetectorOptions(
-      enableLandmarks: true,
-      enableClassification: true,
-      enableTracking: true,
-    );
+    final options = FaceDetectorOptions(enableLandmarks: true, enableClassification: true, enableTracking: true);
     faceDetector = FaceDetector(options: options);
-
     initializeCamera();
   }
 
   Future<void> initializeCamera() async {
     final cameras = await availableCameras();
-    final frontCamera = cameras.firstWhere(
-          (camera) => camera.lensDirection == CameraLensDirection.front,
-    );
-
-    cameraController = CameraController(
-      frontCamera,
+    final frontCamera = cameras.firstWhere((camera) => camera.lensDirection == CameraLensDirection.front);
+    cameraController = CameraController(frontCamera,
       ResolutionPreset.medium,
       enableAudio: false,
     );
@@ -56,61 +44,79 @@ class _FaceAuthenticationState extends State<FaceAuthentication> {
   }
 
   Future<void> processCameraImage(CameraImage image) async {
+    if (!mounted || !cameraController!.value.isStreamingImages) return;
+
     try {
       final inputImage = _convertCameraImageToInputImage(image);
-
-      // Perform face detection
       final List<Face> faces = await faceDetector.processImage(inputImage);
 
       for (Face face in faces) {
-        // Get face bounding box
         final Rect boundingBox = face.boundingBox;
-
-        // Get rotation angles of the head
         final double? rotX = face.headEulerAngleX;
         final double? rotY = face.headEulerAngleY;
         final double? rotZ = face.headEulerAngleZ;
 
-        // Detect specific landmarks if enabled (e.g., left ear position)
+        // Example: Only print information about the first face detected
+        print("Bounding Box: $boundingBox, RotX: $rotX, RotY: $rotY, RotZ: $rotZ");
+
         final FaceLandmark? leftEar = face.landmarks[FaceLandmarkType.leftEar];
         if (leftEar != null) {
           final Point<int> leftEarPos = leftEar.position;
           print("Left ear position: $leftEarPos");
         }
 
-        // Get the probability of a smile if classification was enabled
         if (face.smilingProbability != null) {
           final double smileProb = face.smilingProbability!;
           print("Smile probability: $smileProb");
         }
 
-        // Get the unique tracking ID if tracking was enabled
         if (face.trackingId != null) {
           final int id = face.trackingId!;
           print("Face tracking ID: $id");
         }
-
-        // Additional code for comparing with stored user data can be added here
       }
     } catch (e) {
       print("Error processing camera image: $e");
     } finally {
+      await Future.delayed(const Duration(milliseconds: 100)); // Adding delay to reduce frequency
       isDetecting = false;
     }
   }
 
   InputImage _convertCameraImageToInputImage(CameraImage image) {
-    // Collects all bytes from the image planes
     final WriteBuffer allBytes = WriteBuffer();
     for (final plane in image.planes) {
       allBytes.putUint8List(plane.bytes);
     }
     final bytes = allBytes.done().buffer.asUint8List();
+    final Size imageSize = Size(image.width.toDouble(), image.height.toDouble());
+    const InputImageRotation rotation = InputImageRotation.rotation0deg;
+    const InputImageFormat format = InputImageFormat.nv21;
+    final List<int> bytesPerRow = image.planes.map((plane) => plane.bytesPerRow).toList();
     return InputImage.fromBytes(
       bytes: bytes,
-      metadata: InputImageMetadata(size: null, rotation: null, format: null, bytesPerRow: null), // Adjust based on camera orientation
+      metadata: InputImageMetadata(
+        size: imageSize,
+        rotation: rotation,
+        format: format,
+        bytesPerRow: bytesPerRow.first,
+      ),
     );
   }
+
+  Future<void> capturePhoto() async {
+    try {
+      final image = await cameraController!.takePicture();
+      final inputImage = InputImage.fromFilePath(image.path);
+      final List<Face> faces = await faceDetector.processImage(inputImage);
+      for (Face face in faces) {
+        print("Face detected: ${face.boundingBox}");
+      }
+    } catch (e) {
+      print("Error capturing photo: $e");
+    }
+  }
+
 
   @override
   void dispose() {
@@ -123,14 +129,15 @@ class _FaceAuthenticationState extends State<FaceAuthentication> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Face Authentication"),
+        centerTitle: true,
+        title: const Text("Face Detector", style: TextStyle(fontWeight: FontWeight.w600)),
       ),
-      body: cameraController != null && cameraController!.value.isInitialized
-          ? CameraPreview(cameraController!)
-          : const Center(child: CircularProgressIndicator()),
+      body: cameraController != null && cameraController!.value.isInitialized ?
+      CameraPreview(cameraController!) :
+      const Center(child: CircularProgressIndicator()),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          // Capture image and validate against the stored image here
+          capturePhoto();
         },
         child: const Icon(Icons.camera),
       ),
