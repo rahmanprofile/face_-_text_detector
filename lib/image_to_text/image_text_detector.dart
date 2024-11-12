@@ -12,8 +12,6 @@ class ImageToTextDetector extends StatefulWidget {
 }
 
 class _ImageToTextDetectorState extends State<ImageToTextDetector> {
-
-
   late TextRecognizer textRecognizer;
   late ImagePicker imagePicker;
   String? pickedImagePath;
@@ -121,7 +119,7 @@ class _ImageToTextDetectorState extends State<ImageToTextDetector> {
       appBar: AppBar(
         centerTitle: true,
         backgroundColor: Colors.white,
-        title: const Text('ML Text Recognition', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+        title: const Text('Text Detector', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
       ),
       body: SafeArea(
         child: Column(
