@@ -119,7 +119,9 @@ class _ImageToTextDetectorState extends State<ImageToTextDetector> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ML Text Recognition'),
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        title: const Text('ML Text Recognition', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
       ),
       body: SafeArea(
         child: Column(
